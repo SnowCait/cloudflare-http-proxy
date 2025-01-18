@@ -12,7 +12,7 @@ app.on(
     if (url === undefined) {
       return c.notFound();
     }
-    return fetch(url);
+    return fetch(url, { method: c.req.method });
   }
 );
 
