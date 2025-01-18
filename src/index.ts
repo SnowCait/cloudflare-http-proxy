@@ -8,7 +8,10 @@ app.on(
   ["OPTIONS", "HEAD", "GET"],
   "/",
   cache({ cacheName: "default" }),
-  cors({ origin: "https://nostter.app", allowMethods: ["HEAD", "GET"] }),
+  cors({
+    origin: ["https://nostter.app", "http://localhost:5173"],
+    allowMethods: ["HEAD", "GET"],
+  }),
   (c) => {
     const url = c.req.query("url");
     if (url === undefined) {
