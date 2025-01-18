@@ -2,6 +2,9 @@ compatibility_date = "2025-01-18"
 main = "src/index.ts"
 name = "http-proxy"
 
+[assets]
+directory = "./public/"
+
 [observability]
 enabled = true
 head_sampling_rate = 0.1
