@@ -4,7 +4,7 @@ import { cors } from "hono/cors";
 
 type Env = {
   Bindings: {
-    CORS_ORIGIN: string;
+    CORS_ORIGIN: string | undefined;
   };
 };
 
@@ -16,7 +16,7 @@ app.on(
   cache({ cacheName: "default" }),
   async (c, next) => {
     const middleware = cors({
-      origin: c.env.CORS_ORIGIN ?? "*",
+      origin: c.env.CORS_ORIGIN?.split(",").map((x) => x.trim()) ?? "*",
       allowMethods: ["HEAD", "GET"],
     });
     return middleware(c, next);
