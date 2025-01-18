@@ -1,9 +1,14 @@
-import { Hono } from 'hono'
+import { Hono } from "hono";
+import { cache } from "hono/cache";
 
-const app = new Hono()
+const app = new Hono();
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+app.on(["HEAD", "GET"], "/", cache({ cacheName: "default" }), (c) => {
+  const url = c.req.query("url");
+  if (url === undefined) {
+    return c.notFound();
+  }
+  return fetch(url);
+});
 
-export default app
+export default app;
