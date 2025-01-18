@@ -23,7 +23,11 @@ app.on(
   },
   (c) => {
     const url = c.req.query("url");
-    if (url === undefined) {
+    if (
+      url === undefined ||
+      !URL.canParse(url) ||
+      new URL(url).origin === new URL(c.req.url).origin
+    ) {
       return c.notFound();
     }
     return fetch(url, { method: c.req.method });
