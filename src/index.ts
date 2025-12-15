@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cache } from "hono/cache";
+import { getConnInfo } from "hono/cloudflare-workers";
 import { cors } from "hono/cors";
+import { proxy } from "hono/proxy";
 
 type Env = {
   Bindings: {
@@ -30,7 +32,15 @@ app.on(
     ) {
       return c.notFound();
     }
-    return fetch(url, { method: c.req.method });
+    console.log(c.req.header("Host"));
+    return proxy(url, {
+      method: c.req.method,
+      headers: {
+        ...c.req.header(),
+        "X-Forwarded-For": getConnInfo(c).remote.address,
+        "X-Forwarded-Host": c.req.header("host"),
+      },
+    });
   }
 );
 
