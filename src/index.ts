@@ -3,6 +3,8 @@ import { cache } from "hono/cache";
 import { getConnInfo } from "hono/cloudflare-workers";
 import { cors } from "hono/cors";
 import { proxy } from "hono/proxy";
+import { extractOgp } from "./ogp";
+import { wantsJson } from "./utils";
 
 type Env = {
   Bindings: {
@@ -67,51 +69,5 @@ app.on(
     return response;
   }
 );
-
-function wantsJson(accept: string | undefined): boolean {
-  return (
-    accept
-      ?.split(",")
-      .some((type) => type.trim().split(";")[0].trim() === "application/json") ??
-    false
-  );
-}
-
-async function extractOgp(response: Response): Promise<Record<string, string>> {
-  const ogp: Record<string, string> = {};
-  let title = "";
-
-  const rewriter = new HTMLRewriter()
-    .on("meta", {
-      element(element) {
-        const property =
-          element.getAttribute("property") ?? element.getAttribute("name");
-        const content = element.getAttribute("content");
-        if (property === null || content === null) {
-          return;
-        }
-        if (
-          property.startsWith("og:") ||
-          property.startsWith("twitter:") ||
-          property === "description"
-        ) {
-          ogp[property] = content;
-        }
-      },
-    })
-    .on("title", {
-      text(text) {
-        title += text.text;
-      },
-    });
-
-  await rewriter.transform(response).arrayBuffer();
-
-  if (title !== "" && ogp.title === undefined) {
-    ogp.title = title;
-  }
-
-  return ogp;
-}
 
 export default app;
