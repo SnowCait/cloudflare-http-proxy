@@ -61,4 +61,27 @@ describe("app route /", () => {
     });
     expect(res.headers.get("Access-Control-Allow-Origin")).toBeTruthy();
   });
+
+  it("returns 404 for data: URL", async () => {
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=data:text/html,hello"
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for file: URL", async () => {
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=file:///etc/passwd"
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("HEAD response does not pollute GET cache", async () => {
+    const target = "https://proxy.example.com/?url=https://example.com/page";
+    await SELF.fetch(target, { method: "HEAD" });
+    const res = await SELF.fetch(target, { headers: { Accept: "text/html" } });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body.length).toBeGreaterThan(0);
+  });
 });

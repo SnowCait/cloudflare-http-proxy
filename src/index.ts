@@ -19,13 +19,15 @@ app.on(
   "/",
   cache({
     cacheName: "default",
-    vary: "Accept",
+    vary: "Accept, Origin",
     // Keep OGP JSON and proxied responses in separate cache entries so
     // they never collide, regardless of upstream Vary support.
-    keyGenerator: (c) =>
-      wantsJson(c.req.header("Accept"))
-        ? `${c.req.url}&__ogp-json=1`
-        : c.req.url,
+    keyGenerator: (c) => {
+      const u = new URL(c.req.url);
+      if (c.req.method !== "GET") u.searchParams.set("__method", c.req.method);
+      if (wantsJson(c.req.header("Accept"))) u.searchParams.set("__ogp-json", "1");
+      return u.toString();
+    },
   }),
   async (c, next) => {
     const middleware = cors({
@@ -36,16 +38,16 @@ app.on(
   },
   async (c) => {
     const url = c.req.query("url");
+    const parsed = url !== undefined && URL.canParse(url) ? new URL(url) : null;
     if (
-      url === undefined ||
-      !URL.canParse(url) ||
-      new URL(url).origin === new URL(c.req.url).origin
+      parsed === null ||
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.origin === new URL(c.req.url).origin
     ) {
       return c.notFound();
     }
-    console.log(c.req.header("Host"));
     const json = wantsJson(c.req.header("Accept"));
-    const response = proxy(url, {
+    const response = proxy(parsed.href, {
       method: c.req.method,
       headers: {
         ...c.req.header(),
