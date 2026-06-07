@@ -6,6 +6,9 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "engines": {
+    "npm": ">=11.10.0"
+  },
   "dependencies": {
     "hono": "^4.12.22"
   },
