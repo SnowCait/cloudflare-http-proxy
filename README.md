@@ -1,6 +1,7 @@
 # Cloudflare HTTP Proxy
 
 [![Test](https://github.com/SnowCait/cloudflare-http-proxy/actions/workflows/test.yml/badge.svg)](https://github.com/SnowCait/cloudflare-http-proxy/actions/workflows/test.yml)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/SnowCait/cloudflare-http-proxy)
 
 A small HTTP proxy running on Cloudflare Workers (built with [Hono](https://hono.dev/)).
 It proxies a remote resource passed via the `url` query parameter, and can also return a
@@ -57,6 +58,16 @@ npm run dev
 ```
 
 ## Deploy
+
+Deploy it to your own Cloudflare account with one click:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/SnowCait/cloudflare-http-proxy)
+
+Cloudflare clones this repository into your account and builds and deploys it
+automatically. The optional `CORS_ORIGIN` variable defaults to `*`, so no extra
+configuration is required.
+
+Or deploy manually with Wrangler:
 
 ```
 npm run deploy
