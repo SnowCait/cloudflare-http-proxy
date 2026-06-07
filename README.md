@@ -1,5 +1,7 @@
 # Cloudflare HTTP Proxy
 
+[![Test](https://github.com/SnowCait/cloudflare-http-proxy/actions/workflows/test.yml/badge.svg)](https://github.com/SnowCait/cloudflare-http-proxy/actions/workflows/test.yml)
+
 A small HTTP proxy running on Cloudflare Workers (built with [Hono](https://hono.dev/)).
 It proxies a remote resource passed via the `url` query parameter, and can also return a
 page's [Open Graph](https://ogp.me/) metadata as JSON.
