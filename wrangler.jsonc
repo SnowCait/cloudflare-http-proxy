@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "http-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-10",
+  "assets": {
+    "directory": "./public/"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.001
+  }
+}
