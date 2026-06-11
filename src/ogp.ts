@@ -1,4 +1,7 @@
+import { toUtf8Response } from "./utils";
+
 export async function extractOgp(response: Response): Promise<Record<string, string>> {
+  const utf8Response = await toUtf8Response(response);
   const ogp: Record<string, string> = {};
   let title = "";
 
@@ -26,7 +29,7 @@ export async function extractOgp(response: Response): Promise<Record<string, str
       },
     });
 
-  await rewriter.transform(response).arrayBuffer();
+  await rewriter.transform(utf8Response).arrayBuffer();
 
   if (title !== "" && ogp.title === undefined) {
     ogp.title = title;
