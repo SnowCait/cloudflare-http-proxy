@@ -48,7 +48,11 @@ It extracts `og:*`, `twitter:*`, and `description` meta tags, and falls back to 
 
 ## Configuration
 
-- `CORS_ORIGIN` — comma-separated list of allowed origins. Defaults to `*`.
+- `ALLOWED_ORIGINS` — comma-separated (newlines also accepted) list of allowed
+  origins. Defaults to `*`. When set to specific origins, requests are also
+  rejected **server-side** with `403`: any request whose `Origin` header is not
+  in the list — including requests with no `Origin` header, such as direct
+  access or `curl` — is blocked, not just denied CORS headers in the browser.
 
 ## Development
 
@@ -64,7 +68,7 @@ Deploy it to your own Cloudflare account with one click:
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/SnowCait/cloudflare-http-proxy)
 
 Cloudflare clones this repository into your account and builds and deploys it
-automatically. The optional `CORS_ORIGIN` variable defaults to `*`, so no extra
+automatically. The optional `ALLOWED_ORIGINS` variable defaults to `*`, so no extra
 configuration is required.
 
 Or deploy manually with Wrangler:

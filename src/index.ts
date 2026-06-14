@@ -8,7 +8,7 @@ import { wantsJson } from "./utils";
 
 type Env = {
   Bindings: {
-    CORS_ORIGIN: string | undefined;
+    ALLOWED_ORIGINS: string | undefined;
   };
 };
 
@@ -30,8 +30,19 @@ app.on(
     },
   }),
   async (c, next) => {
+    const allowed = c.env.ALLOWED_ORIGINS?.split(/[\n,]/)
+      .map((x) => x.trim())
+      .filter((x) => x !== "");
+
+    if (allowed !== undefined && allowed.length > 0 && !allowed.includes("*")) {
+      const origin = c.req.header("Origin");
+      if (origin === undefined || !allowed.includes(origin)) {
+        return c.text("Forbidden", 403);
+      }
+    }
+
     const middleware = cors({
-      origin: c.env.CORS_ORIGIN?.split(",").map((x) => x.trim()) ?? "*",
+      origin: allowed !== undefined && allowed.length > 0 ? allowed : "*",
       allowMethods: ["HEAD", "GET"],
     });
     return middleware(c, next);
