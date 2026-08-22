@@ -91,22 +91,31 @@ describe("app route /", () => {
     expect(body.length).toBeGreaterThan(0);
   });
 
-  it("opens a hostname circuit breaker when the upstream proxy throws", async () => {
+  it("opens an origin circuit breaker when the upstream proxy throws", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(proxy).mockRejectedValueOnce(new TypeError("Too many redirects"));
+    vi.mocked(proxy).mockRejectedValueOnce(
+      new TypeError(
+        "Too many redirects at https://user:secret@broken.example/private?token=secret"
+      )
+    );
 
     const first = await SELF.fetch(
-      "https://proxy.example.com/?url=https://broken.example/first"
+      "https://proxy.example.com/?url=https://user:secret@broken.example/private?token=secret"
     );
 
     expect(first.status).toBe(502);
     expect(await first.text()).toBe("Bad Gateway");
     expect(first.headers.get("Retry-After")).toBeNull();
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `hostname=broken.example ttl=${BREAKER_TTL_SECONDS}s error=TypeError`
-      )
-    );
+    expect(errorSpy).toHaveBeenCalledWith({
+      event: "upstream_circuit_breaker_opened",
+      upstreamOrigin: "https://broken.example",
+      ttlSeconds: BREAKER_TTL_SECONDS,
+      errorType: "TypeError",
+      errorSummary: "too_many_redirects",
+    });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("user");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("secret");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("private");
 
     const marker = await (await caches.open(BREAKER_CACHE_NAME)).match(
       "https://broken.example/"
@@ -128,6 +137,30 @@ describe("app route /", () => {
       "https://proxy.example.com/?url=https://healthy-after-failure.example/page"
     );
     expect(otherHost.status).toBe(200);
+    expect(proxy).toHaveBeenCalledTimes(2);
+
+    errorSpy.mockRestore();
+  });
+
+  it("isolates breakers by origin while sharing them across paths and queries", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(proxy).mockRejectedValueOnce(new TypeError("Connection failed"));
+
+    const failed = await SELF.fetch(
+      "https://proxy.example.com/?url=https://ports.example:1234/first?value=1"
+    );
+    expect(failed.status).toBe(502);
+
+    const sameOrigin = await SELF.fetch(
+      "https://proxy.example.com/?url=https://ports.example:1234/other?value=2"
+    );
+    expect(sameOrigin.status).toBe(502);
+    expect(proxy).toHaveBeenCalledTimes(1);
+
+    const differentPort = await SELF.fetch(
+      "https://proxy.example.com/?url=https://ports.example/healthy"
+    );
+    expect(differentPort.status).toBe(200);
     expect(proxy).toHaveBeenCalledTimes(2);
 
     errorSpy.mockRestore();
