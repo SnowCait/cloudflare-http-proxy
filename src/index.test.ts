@@ -1,5 +1,7 @@
 import { SELF } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { proxy } from "hono/proxy";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./index";
 
 vi.mock("hono/proxy", () => ({
   proxy: vi.fn((_url: string, _init?: RequestInit) =>
@@ -20,6 +22,10 @@ vi.mock("hono/cloudflare-workers", async (importOriginal) => {
 });
 
 describe("app route /", () => {
+  beforeEach(() => {
+    vi.mocked(proxy).mockClear();
+  });
+
   it("returns 404 when url param is missing", async () => {
     const res = await SELF.fetch("https://proxy.example.com/");
     expect(res.status).toBe(404);
@@ -83,5 +89,69 @@ describe("app route /", () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body.length).toBeGreaterThan(0);
+  });
+
+  it("opens a hostname circuit breaker when the upstream proxy throws", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(proxy).mockRejectedValueOnce(new TypeError("Too many redirects"));
+
+    const first = await SELF.fetch(
+      "https://proxy.example.com/?url=https://broken.example/first"
+    );
+
+    expect(first.status).toBe(502);
+    expect(await first.text()).toBe("Bad Gateway");
+    expect(first.headers.get("Retry-After")).toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `hostname=broken.example ttl=${BREAKER_TTL_SECONDS}s error=TypeError`
+      )
+    );
+
+    const marker = await (await caches.open(BREAKER_CACHE_NAME)).match(
+      "https://broken.example/"
+    );
+    expect(marker).toBeDefined();
+    expect(marker?.headers.get("Cache-Control")).toBe(
+      `max-age=${BREAKER_TTL_SECONDS}`
+    );
+
+    const second = await SELF.fetch(
+      "https://proxy.example.com/?url=https://broken.example/second"
+    );
+    expect(second.status).toBe(502);
+    expect(second.headers.get("Retry-After")).toBeNull();
+    expect(proxy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    const otherHost = await SELF.fetch(
+      "https://proxy.example.com/?url=https://healthy-after-failure.example/page"
+    );
+    expect(otherHost.status).toBe(200);
+    expect(proxy).toHaveBeenCalledTimes(2);
+
+    errorSpy.mockRestore();
+  });
+
+  it("does not open the circuit breaker for an upstream HTTP error response", async () => {
+    vi.mocked(proxy).mockImplementationOnce(async () =>
+      new Response("failure", { status: 503 })
+    );
+
+    const first = await SELF.fetch(
+      "https://proxy.example.com/?url=https://http-error.example/first"
+    );
+    expect(first.status).toBe(503);
+
+    const second = await SELF.fetch(
+      "https://proxy.example.com/?url=https://http-error.example/second"
+    );
+    expect(second.status).toBe(200);
+    expect(proxy).toHaveBeenCalledTimes(2);
+    expect(
+      await (
+        await caches.open(BREAKER_CACHE_NAME)
+      ).match("https://http-error.example/")
+    ).toBeUndefined();
   });
 });
