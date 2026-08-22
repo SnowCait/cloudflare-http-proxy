@@ -73,9 +73,11 @@ app.on(
     if (
       parsed === null ||
       !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username !== "" ||
+      parsed.password !== "" ||
       parsed.origin === new URL(c.req.url).origin
     ) {
-      return c.notFound();
+      return c.text("Bad Request", 400);
     }
     const breakerCache = await caches.open(BREAKER_CACHE_NAME);
     const markerKey = breakerKey(parsed.origin);

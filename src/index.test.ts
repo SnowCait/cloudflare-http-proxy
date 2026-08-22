@@ -26,21 +26,26 @@ describe("app route /", () => {
     vi.mocked(proxy).mockClear();
   });
 
-  it("returns 404 when url param is missing", async () => {
+  it("returns 404 for an unknown route", async () => {
+    const res = await SELF.fetch("https://proxy.example.com/unknown");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 400 when url param is missing", async () => {
     const res = await SELF.fetch("https://proxy.example.com/");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
   });
 
-  it("returns 404 for an invalid URL", async () => {
+  it("returns 400 for an invalid URL", async () => {
     const res = await SELF.fetch("https://proxy.example.com/?url=not-a-url");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
   });
 
-  it("returns 404 when url has the same origin as the worker", async () => {
+  it("returns 400 when url has the same origin as the worker", async () => {
     const res = await SELF.fetch(
       "https://proxy.example.com/?url=https://proxy.example.com/other"
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
   });
 
   it("returns OGP JSON when Accept is application/json", async () => {
@@ -68,18 +73,45 @@ describe("app route /", () => {
     expect(res.headers.get("Access-Control-Allow-Origin")).toBeTruthy();
   });
 
-  it("returns 404 for data: URL", async () => {
+  it("returns 400 for data: URL", async () => {
     const res = await SELF.fetch(
       "https://proxy.example.com/?url=data:text/html,hello"
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
   });
 
-  it("returns 404 for file: URL", async () => {
+  it("returns 400 for file: URL", async () => {
     const res = await SELF.fetch(
       "https://proxy.example.com/?url=file:///etc/passwd"
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects upstream URLs containing credentials before proxying", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const withUsername = await SELF.fetch(
+      "https://proxy.example.com/?url=https://user@username-credentials.example/page"
+    );
+    const withPassword = await SELF.fetch(
+      "https://proxy.example.com/?url=https://:password@password-credentials.example/page"
+    );
+
+    expect(withUsername.status).toBe(400);
+    expect(withPassword.status).toBe(400);
+    expect(await withUsername.text()).toBe("Bad Request");
+    expect(await withPassword.text()).toBe("Bad Request");
+    expect(proxy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    const breakerCache = await caches.open(BREAKER_CACHE_NAME);
+    expect(
+      await breakerCache.match("https://username-credentials.example/")
+    ).toBeUndefined();
+    expect(
+      await breakerCache.match("https://password-credentials.example/")
+    ).toBeUndefined();
+
+    errorSpy.mockRestore();
   });
 
   it("HEAD response does not pollute GET cache", async () => {
@@ -95,12 +127,12 @@ describe("app route /", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(proxy).mockRejectedValueOnce(
       new TypeError(
-        "Too many redirects at https://user:secret@broken.example/private?token=secret"
+        "Too many redirects at https://broken.example/private?token=secret"
       )
     );
 
     const first = await SELF.fetch(
-      "https://proxy.example.com/?url=https://user:secret@broken.example/private?token=secret"
+      "https://proxy.example.com/?url=https://broken.example/private?token=secret"
     );
 
     expect(first.status).toBe(502);
@@ -113,7 +145,6 @@ describe("app route /", () => {
       errorType: "TypeError",
       errorSummary: "too_many_redirects",
     });
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("user");
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("secret");
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("private");
 
