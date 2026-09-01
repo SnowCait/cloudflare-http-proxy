@@ -4,18 +4,21 @@ updates:
     directory: "/"
     versioning-strategy: "increase-if-necessary"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
     cooldown:
       default-days: 14
     groups:
       npm:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
     cooldown:
       default-days: 14
     groups:
