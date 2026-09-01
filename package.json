@@ -13,7 +13,7 @@
     "hono": "^4.12.22"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.13",
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
     "@cloudflare/workers-types": "^4.20250109.0",
     "vitest": "^4.1.8",
     "wrangler": "^4.45.3"
