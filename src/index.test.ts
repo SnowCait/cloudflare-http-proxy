@@ -66,6 +66,31 @@ describe("app route /", () => {
     expect(res.status).toBe(200);
   });
 
+  it.each(["GET", "HEAD"] as const)(
+    "does not expose upstream resource hints for %s requests",
+    async (method) => {
+      vi.mocked(proxy).mockImplementationOnce(async () =>
+        new Response("upstream body", {
+          status: 202,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            Link: '<./_app/immutable/entry/start.js>; rel="modulepreload"',
+          },
+        })
+      );
+
+      const res = await SELF.fetch(
+        `https://proxy.example.com/?url=https://${method.toLowerCase()}-link.example/page`,
+        { method, headers: { Accept: "text/html" } }
+      );
+
+      expect(res.status).toBe(202);
+      expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+      expect(res.headers.get("Link")).toBeNull();
+      expect(await res.text()).toBe(method === "GET" ? "upstream body" : "");
+    }
+  );
+
   it("returns CORS headers on OPTIONS request", async () => {
     const res = await SELF.fetch("https://proxy.example.com/", {
       method: "OPTIONS",

@@ -125,6 +125,7 @@ app.on(
       return c.json(await extractOgp(upstream));
     }
 
+    upstream.headers.delete("Link");
     return upstream;
   }
 );
