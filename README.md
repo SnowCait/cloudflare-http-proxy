@@ -17,10 +17,10 @@ GET https://<worker>/?url=https://example.com/image.png
 
 - The `url` value should be URL-encoded.
 - `url` must be a valid absolute URL and must not point back to the proxy's own origin
-  (otherwise the request returns `404`).
+  (otherwise the request returns `400`).
 - Supported methods: `OPTIONS`, `HEAD`, `GET`.
-- Responses are cached, CORS headers are applied, and the upstream request includes
-  `X-Forwarded-For` / `X-Forwarded-Host` headers.
+- Responses are cached and CORS headers are applied. Only the incoming `Accept`
+  header is forwarded to the target.
 
 ### Get OGP metadata as JSON
 

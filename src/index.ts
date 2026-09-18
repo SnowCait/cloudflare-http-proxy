@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { cache } from "hono/cache";
-import { getConnInfo } from "hono/cloudflare-workers";
 import { cors } from "hono/cors";
 import { proxy } from "hono/proxy";
 import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./circuit-breaker";
@@ -83,19 +82,20 @@ app.on(
       return c.text("Bad Gateway", 502);
     }
 
-    const json = wantsJson(c.req.header("Accept"));
+    const accept = c.req.header("Accept");
+    const json = wantsJson(accept);
     let upstream: Response;
     try {
       upstream = await proxy(parsed.href, {
         method: c.req.method,
-        headers: {
-          ...c.req.header(),
-          // Request the HTML page so OGP meta tags can be parsed,
-          // not a JSON API response from the origin.
-          ...(json ? { Accept: "text/html" } : {}),
-          "X-Forwarded-For": getConnInfo(c).remote.address,
-          "X-Forwarded-Host": c.req.header("host"),
-        },
+        headers:
+          accept === undefined
+            ? {}
+            : {
+                // Request the HTML page so OGP meta tags can be parsed,
+                // not a JSON API response from the origin.
+                Accept: json ? "text/html" : accept,
+              },
       });
     } catch (error) {
       const errorType = error instanceof Error ? error.name : typeof error;

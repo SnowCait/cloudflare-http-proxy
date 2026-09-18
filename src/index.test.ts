@@ -14,13 +14,10 @@ vi.mock("hono/proxy", () => ({
   ),
 }));
 
-vi.mock("hono/cloudflare-workers", async (importOriginal) => {
-  const original = await importOriginal<typeof import("hono/cloudflare-workers")>();
-  return {
-    ...original,
-    getConnInfo: () => ({ remote: { address: "1.2.3.4" } }),
-  };
-});
+const lastUpstreamHeaders = (): Headers => {
+  expect(proxy).toHaveBeenCalledTimes(1);
+  return new Headers(vi.mocked(proxy).mock.calls[0][1]?.headers);
+};
 
 describe("app route /", () => {
   beforeEach(() => {
@@ -57,14 +54,84 @@ describe("app route /", () => {
     expect(res.status).toBe(200);
     const json = await res.json<Record<string, string>>();
     expect(json["og:title"]).toBe("Mocked");
+    expect(lastUpstreamHeaders().get("Accept")).toBe("text/html");
   });
 
-  it("returns proxied response for normal Accept header", async () => {
+  it("forwards a non-JSON Accept header unchanged", async () => {
     const res = await SELF.fetch(
-      "https://proxy.example.com/?url=https://example.com/page",
+      "https://proxy.example.com/?url=https://example.org/html",
       { headers: { Accept: "text/html" } }
     );
     expect(res.status).toBe(200);
+    expect(lastUpstreamHeaders().get("Accept")).toBe("text/html");
+  });
+
+  it("forwards multiple non-JSON media types unchanged", async () => {
+    const accept = "image/avif,image/webp,*/*";
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.net/image",
+      { headers: { Accept: accept } }
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastUpstreamHeaders().get("Accept")).toBe(accept);
+  });
+
+  it("does not add Accept when the incoming request has none", async () => {
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.org/no-accept"
+    );
+
+    expect(res.status).toBe(200);
+    expect(lastUpstreamHeaders().has("Accept")).toBe(false);
+  });
+
+  it("does not forward incoming credentials or proxy metadata", async () => {
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.net/private",
+      {
+        headers: {
+          Accept: "*/*",
+          "Accept-Encoding": "gzip",
+          "Accept-Language": "en-US",
+          Authorization: "Bearer secret",
+          "CF-Connecting-IP": "192.0.2.1",
+          Cookie: "session=secret",
+          "If-Range": '"example-etag"',
+          Origin: "https://example.com",
+          Range: "bytes=0-99",
+          Referer: "https://example.com/page",
+          "User-Agent": "example-client",
+          "X-Forwarded-For": "192.0.2.1",
+          "X-Forwarded-Host": "proxy.example.com",
+          "X-Forwarded-Proto": "https",
+          "X-Real-IP": "192.0.2.1",
+        },
+      }
+    );
+
+    expect(res.status).toBe(200);
+    const headers = lastUpstreamHeaders();
+    expect(headers.get("Accept")).toBe("*/*");
+    for (const name of [
+      "Accept-Encoding",
+      "Accept-Language",
+      "Authorization",
+      "CF-Connecting-IP",
+      "Cookie",
+      "Host",
+      "If-Range",
+      "Origin",
+      "Range",
+      "Referer",
+      "User-Agent",
+      "X-Forwarded-For",
+      "X-Forwarded-Host",
+      "X-Forwarded-Proto",
+      "X-Real-IP",
+    ]) {
+      expect(headers.has(name)).toBe(false);
+    }
   });
 
   it.each(["GET", "HEAD"] as const)(
