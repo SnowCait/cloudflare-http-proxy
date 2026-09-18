@@ -17,19 +17,18 @@ jobs:
       - run: npm ci
       - run: npm run cf-typecheck
       - name: Report Worker bundle size
+        env:
+          WRANGLER_OUTPUT_FILE_PATH: .wrangler/wrangler-output.ndjson
         run: |
-          bundle_output="$(npm run cf-bundle 2>&1)" || {
-            printf '%s\n' "$bundle_output"
-            exit 1
-          }
-          printf '%s\n' "$bundle_output"
-
-          total_upload_lines="$(printf '%s\n' "$bundle_output" | grep 'Total Upload:' || true)"
-          if [ "$(printf '%s\n' "$total_upload_lines" | grep -c . || true)" -ne 1 ]; then
-            echo "Expected exactly one Total Upload line from Wrangler."
-            exit 1
-          fi
-
-          total_upload="$(printf '%s\n' "$total_upload_lines" | sed -E 's/.*(Total Upload:.*)/\1/' | sed -E 's/\x1B\[[0-?]*[ -\/]*[@-~]//g')"
-          printf '### Worker bundle size\n\n`%s`\n' "$total_upload" >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$WRANGLER_OUTPUT_FILE_PATH"
+          npm run cf-bundle
+          jq -s -r '
+            [.[] | select(.type == "deploy" and .bundle_size)] |
+            if length == 1 then
+              .[0].bundle_size |
+              "### Worker bundle size\n\n`Total Upload: \(.raw_bytes / 1024 * 100 | round / 100) KiB / gzip: \(.gzip_bytes / 1024 * 100 | round / 100) KiB`"
+            else
+              error("Expected exactly one deploy entry with bundle_size")
+            end
+          ' "$WRANGLER_OUTPUT_FILE_PATH" >> "$GITHUB_STEP_SUMMARY"
       - run: npm test
