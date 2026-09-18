@@ -19,8 +19,8 @@ GET https://<worker>/?url=https://example.com/image.png
 - `url` must be a valid absolute URL and must not point back to the proxy's own origin
   (otherwise the request returns `404`).
 - Supported methods: `OPTIONS`, `HEAD`, `GET`.
-- Responses are cached, CORS headers are applied, and the upstream request includes
-  `X-Forwarded-For` / `X-Forwarded-Host` headers.
+- Responses are cached and CORS headers are applied. The application forwards only the
+  incoming `Accept` header to the target; credentials and proxy metadata are not forwarded.
 
 ### Get OGP metadata as JSON
 
