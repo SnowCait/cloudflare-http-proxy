@@ -57,6 +57,58 @@ describe("app route /", () => {
     expect(lastUpstreamHeaders().get("Accept")).toBe("text/html");
   });
 
+  it("returns 200 JSON for a 204 upstream response in OGP JSON mode", async () => {
+    vi.mocked(proxy).mockImplementationOnce(async () => new Response(null, { status: 204 }));
+
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.org/no-content",
+      { headers: { Accept: "application/json" } }
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({});
+  });
+
+  it("preserves a 404 upstream status in OGP JSON mode", async () => {
+    vi.mocked(proxy).mockImplementationOnce(async () =>
+      new Response("<title>Missing</title><meta property='og:title' content='Missing' />", {
+        status: 404,
+        headers: { "Content-Type": "text/html" },
+      })
+    );
+
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.org/missing",
+      { headers: { Accept: "application/json" } }
+    );
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ "og:title": "Missing", title: "Missing" });
+  });
+
+  it("preserves a 503 upstream status in OGP JSON mode", async () => {
+    vi.mocked(proxy).mockImplementationOnce(async () =>
+      new Response("<title>Unavailable</title><meta property='og:title' content='Unavailable' />", {
+        status: 503,
+        headers: { "Content-Type": "text/html" },
+      })
+    );
+
+    const res = await SELF.fetch(
+      "https://proxy.example.com/?url=https://example.net/unavailable",
+      { headers: { Accept: "application/json" } }
+    );
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      "og:title": "Unavailable",
+      title: "Unavailable",
+    });
+    expect(
+      await (await caches.open(BREAKER_CACHE_NAME)).match("https://example.net/")
+    ).toBeUndefined();
+  });
+
   it("forwards a non-JSON Accept header unchanged", async () => {
     const res = await SELF.fetch(
       "https://proxy.example.com/?url=https://example.org/html",

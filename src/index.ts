@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cache } from "hono/cache";
 import { cors } from "hono/cors";
 import { proxy } from "hono/proxy";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./circuit-breaker";
 import { extractOgp } from "./ogp";
 import { wantsJson } from "./utils";
@@ -119,6 +120,9 @@ app.on(
       const cacheControl = upstream.headers.get("Cache-Control");
       if (cacheControl !== null) {
         c.header("Cache-Control", cacheControl);
+      }
+      if (upstream.status >= 400) {
+        c.status(upstream.status as ContentfulStatusCode);
       }
       return c.json(await extractOgp(upstream));
     }
