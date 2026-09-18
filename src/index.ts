@@ -3,6 +3,7 @@ import { cache } from "hono/cache";
 import { getConnInfo } from "hono/cloudflare-workers";
 import { cors } from "hono/cors";
 import { proxy } from "hono/proxy";
+import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./circuit-breaker";
 import { extractOgp } from "./ogp";
 import { wantsJson } from "./utils";
 
@@ -13,9 +14,6 @@ type Env = {
 };
 
 const app = new Hono<Env>();
-
-export const BREAKER_CACHE_NAME = "upstream-circuit-breaker";
-export const BREAKER_TTL_SECONDS = 86_400;
 
 const breakerKey = (origin: string) => new Request(origin);
 

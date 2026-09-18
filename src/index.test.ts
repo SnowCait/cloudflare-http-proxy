@@ -1,7 +1,8 @@
 import { SELF } from "cloudflare:test";
 import { proxy } from "hono/proxy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./index";
+import { BREAKER_CACHE_NAME, BREAKER_TTL_SECONDS } from "./circuit-breaker";
+import "./index";
 
 vi.mock("hono/proxy", () => ({
   proxy: vi.fn((_url: string, _init?: RequestInit) =>
