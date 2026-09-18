@@ -1,6 +1,7 @@
 {
   "name": "cloudflare-http-proxy",
   "scripts": {
+    "cf-bundle": "wrangler deploy --dry-run --minify --outdir .wrangler/bundle",
     "cf-typegen": "wrangler types",
     "cf-typecheck": "wrangler types --check",
     "dev": "wrangler dev",
