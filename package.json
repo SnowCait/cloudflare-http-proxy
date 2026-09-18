@@ -1,6 +1,7 @@
 {
   "name": "cloudflare-http-proxy",
   "scripts": {
+    "cf-startupcheck": "node scripts/check-worker-startup.mjs",
     "cf-typegen": "wrangler types",
     "cf-typecheck": "wrangler types --check",
     "dev": "wrangler dev",
