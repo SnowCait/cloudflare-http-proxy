@@ -89,14 +89,16 @@ app.on(
     try {
       upstream = await proxy(parsed.href, {
         method: c.req.method,
-        headers:
-          accept === undefined
+        headers: {
+          "User-Agent": "cloudflare-http-proxy",
+          ...(accept === undefined
             ? {}
             : {
                 // Request the HTML page so OGP meta tags can be parsed,
                 // not a JSON API response from the origin.
                 Accept: json ? "text/html" : accept,
-              },
+              }),
+        },
       });
     } catch (error) {
       const errorType = error instanceof Error ? error.name : typeof error;
