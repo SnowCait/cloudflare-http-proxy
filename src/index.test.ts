@@ -165,6 +165,7 @@ describe("app route /", () => {
     expect(res.status).toBe(200);
     const headers = lastUpstreamHeaders();
     expect(headers.get("Accept")).toBe("*/*");
+    expect(headers.get("User-Agent")).toBe("cloudflare-http-proxy");
     for (const name of [
       "Accept-Encoding",
       "Accept-Language",
@@ -176,7 +177,6 @@ describe("app route /", () => {
       "Origin",
       "Range",
       "Referer",
-      "User-Agent",
       "X-Forwarded-For",
       "X-Forwarded-Host",
       "X-Forwarded-Proto",
